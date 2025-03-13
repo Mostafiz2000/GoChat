@@ -30,30 +30,7 @@ git clone <repository-url>
 Once you have cloned the repository, navigate to the project folder and open the GoChat folder in Visual Studio Code.
 
 ### 2. **Create an SQL Script for Database Setup (`setup.sql`)**  
-Create an **SQL script** file (e.g., `setup.sql`) that defines your database schema (tables, relationships, and initial data).
-
-Example `setup.sql` file:
-
-```sql
--- Create table for users
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create table for messages
-CREATE TABLE messages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    sender_id INT,
-    receiver_id INT,
-    message TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sender_id) REFERENCES users(id),
-    FOREIGN KEY (receiver_id) REFERENCES users(id)
-);
-```
+The SQL setup script, `setup.sql`, is located in the database/ directory of the GoChat project repository. This file contains the SQL statements necessary to create the chatdb database and all associated tables.
 
 ## 3. Build the Project
 To build the project, follow these steps:  
