@@ -12,6 +12,7 @@ Before starting, ensure you have the following installed:
 - [XAMPP](https://www.apachefriends.org/download.html) – Includes MySQL for database management.  
 - **WebSockets** – For real-time bidirectional communication.  
 - **gqlgen** – For type-safe client-server interactions.
+- **gorm** – For object relational model.
   
 **Verify Go installation** by running:  
 
@@ -24,8 +25,35 @@ Clone the source code to your local machine using the following command:
 ```bash
 git clone <repository-url>
 ```
-## 2. Open the Project in Visual Studio code
+## 2. Project Setup
+### 1. Setup Visual studio Code
 Once you have cloned the repository, navigate to the project folder and open the GoChat folder in Visual Studio Code.
+
+### 2. **Create an SQL Script for Database Setup (`setup.sql`)**  
+Create an **SQL script** file (e.g., `setup.sql`) that defines your database schema (tables, relationships, and initial data).
+
+Example `setup.sql` file:
+
+```sql
+-- Create table for users
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create table for messages
+CREATE TABLE messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT,
+    receiver_id INT,
+    message TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+```
 
 ## 3. Build the Project
 To build the project, follow these steps:  
