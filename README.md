@@ -12,7 +12,6 @@ Before starting, ensure you have the following installed:
 - [XAMPP](https://www.apachefriends.org/download.html) – Includes MySQL for database management.  
 - **WebSockets** – For real-time bidirectional communication.  
 - **gqlgen** – For type-safe client-server interactions.
-- **gorm** – For object relational model.
   
 **Verify Go installation** by running:  
 
@@ -29,8 +28,8 @@ git clone <repository-url>
 ### 1. Setup Visual studio Code
 Once you have cloned the repository, navigate to the project folder and open the GoChat folder in Visual Studio Code.
 
-### 2. **Create an SQL Script for Database Setup (`setup.sql`)**  
-The SQL setup script, `setup.sql`, is located in the database/ directory of the GoChat project repository. This file contains the SQL statements necessary to create the chatdb database and all associated tables.
+### 2. **Create an SQL Script for Database Setup (`chatdb`)**  
+create a `chatdb` database on mysql database.
 
 ## 3. Build the Project
 To build the project, follow these steps:  
