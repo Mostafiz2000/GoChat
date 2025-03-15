@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	models "GoChat/Model"
@@ -25,14 +26,24 @@ var clients = make(map[string]*websocket.Conn)
 var mutex = sync.Mutex{}
 
 func main() {
-	models.InitDB()
+
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: go run server.go <server-ip> <server-port>")
+		os.Exit(1)
+	}
+
+	serverIP := os.Args[1]
+	serverPort := os.Args[2]
+	serverAddress := fmt.Sprintf("%s:%s", serverIP, serverPort)
+
+	models.InitDB(serverIP, "3306")
 
 	http.HandleFunc("/ws", handleConnections)
 	http.HandleFunc("/sign-in", signInHandler)
 	http.HandleFunc("/register", registerUserHandler)
 
-	fmt.Println("🚀 Server started on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Printf("🚀 Server started on http://%s\n", serverAddress)
+	log.Fatal(http.ListenAndServe(serverAddress, nil))
 }
 func signInHandler(w http.ResponseWriter, r *http.Request) {
 	var user models.User

@@ -10,9 +10,9 @@ import (
 var DB *sql.DB
 
 // Initialize database connection and run migrations
-func InitDB() {
+func InitDB(dbHost, dbPort string) {
 	var err error
-	DB, err = sql.Open("mysql", "root:@tcp(localhost:3306)/chatdb")
+	DB, err = sql.Open("mysql", fmt.Sprintf("root:@tcp(%s:%s)/chatdb", dbHost, dbPort))
 	if err != nil {
 		log.Fatal("Error connecting to MySQL:", err)
 	}

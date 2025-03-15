@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/boltdb/bolt"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,115 +22,29 @@ type Message struct {
 }
 
 type User struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	DeviceID   string `json:"deviceID"`
-	IsLoggedIn bool   `json:"isLoggedIn"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	DeviceID string `json:"deviceID"`
 }
 
-var users = map[string]string{}
-var db *bolt.DB
-
-func initDB() {
-	var err error
-	db, err = bolt.Open("localdb.db", 0600, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("users"))
-		return err
-	})
-}
-
-func saveUser(user User) {
-	db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("users"))
-		userData, _ := json.Marshal(user)
-		return b.Put([]byte(user.Username), userData)
-	})
-}
-
-func getUser(username string) (User, error) {
-	var user User
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("users"))
-		userData := b.Get([]byte(username))
-		if userData != nil {
-			json.Unmarshal(userData, &user)
-		}
-		return nil
-	})
-	return user, nil
-}
-func getLoggedInUser() (User, bool) {
-	var loggedInUser User
-	var found bool
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("users"))
-		b.ForEach(func(k, v []byte) error {
-			var user User
-			json.Unmarshal(v, &user)
-			if user.IsLoggedIn {
-				loggedInUser = user
-				found = true
-				return nil
-			}
-			return nil
-		})
-		return nil
-	})
-	return loggedInUser, found
-}
-
-func loginUser(user User) bool {
-	userData, _ := json.Marshal(user)
-	resp, err := http.Post("http://localhost:8080/sign-in", "application/json", bytes.NewBuffer(userData))
-	if err != nil {
-		fmt.Println("⚠️ Login failed:", err)
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
-}
-
-func registerUserOnServer(user User) bool {
-	userData, _ := json.Marshal(user)
-	resp, err := http.Post("http://localhost:8080/register", "application/json", bytes.NewBuffer(userData))
-	if err != nil {
-		fmt.Println("⚠️ Server registration failed:", err)
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
-}
-
-func getDeviceID() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "unknown"
-	}
-
-	for _, iface := range interfaces {
-		if iface.HardwareAddr != nil {
-			return iface.HardwareAddr.String() // MAC address
-		}
-	}
-	return "unknown"
-}
+var serverIP string
+var serverPort string
 
 func main() {
-	//initDB()
+	// Ensure the correct number of arguments are provided
+	if len(os.Args) != 3 {
+		fmt.Println("Usage: go run client.go <server_ip> <server_port>")
+		return
+	}
+
+	serverIP = os.Args[1]
+	serverPort = os.Args[2]
+	serverURL := fmt.Sprintf("http://%s:%s", serverIP, serverPort)
+	wsURL := fmt.Sprintf("ws://%s:%s/ws", serverIP, serverPort)
+
 	reader := bufio.NewReader(os.Stdin)
 
-	// if user, found := getLoggedInUser(); found {
-	// 	fmt.Println("Welcome back,", user.Username)
-	// 	connectWebSocket(user.Username)
-	// 	return
-	// }
-	var username, password, deviceID string
+	var username, password string
 
 	for {
 		fmt.Println("1. Login")
@@ -148,7 +61,8 @@ func main() {
 			fmt.Print("Enter your password: ")
 			password, _ = reader.ReadString('\n')
 			password = strings.TrimSpace(password)
-			deviceID = getDeviceID()
+
+			deviceID := getDeviceID()
 
 			tempUser := User{
 				Username: username,
@@ -156,14 +70,12 @@ func main() {
 				DeviceID: deviceID,
 			}
 
-			if loginUser(tempUser) {
+			if loginUser(tempUser, serverURL) {
 				fmt.Println("✅ Login successful!")
-				//saveUser(User{Username: username, Password: password, IsLoggedIn: true})
 				break
 			} else {
 				fmt.Println("❌ Invalid username or password. Try again.")
 			}
-
 		} else if choice == "2" {
 			fmt.Print("Enter your name: ")
 			name, _ := reader.ReadString('\n')
@@ -173,39 +85,54 @@ func main() {
 			username, _ = reader.ReadString('\n')
 			username = strings.TrimSpace(username)
 
-			if _, exists := users[username]; exists {
-				fmt.Println("⚠️ Username already taken! Choose another.")
-				continue
-			}
-
 			fmt.Print("Create a password: ")
 			password, _ = reader.ReadString('\n')
 			password = strings.TrimSpace(password)
 
+			deviceID := getDeviceID()
+
 			newUser := User{
-				Name:     name,
 				Username: username,
 				Password: password,
 				DeviceID: deviceID,
 			}
 
-			// Save locally
-			//saveUser(newUser)
-			users[username] = password
-
-			// Register on the server
-			if registerUserOnServer(newUser) {
-				fmt.Println("✅ Sign-up successful on server!")
+			if registerUserOnServer(newUser, serverURL) {
+				fmt.Println("✅ Sign-up successful!")
 			} else {
-				fmt.Println("⚠️ Server registration failed, but local account created.")
+				fmt.Println("⚠️ Server registration failed.")
 			}
 		}
 	}
-	connectWebSocket(username)
+
+	connectWebSocket(username, wsURL)
 }
 
-func connectWebSocket(username string) {
-	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
+func loginUser(user User, serverURL string) bool {
+	userData, _ := json.Marshal(user)
+	resp, err := http.Post(fmt.Sprintf("%s/sign-in", serverURL), "application/json", bytes.NewBuffer(userData))
+	if err != nil {
+		fmt.Println("⚠️ Login failed:", err)
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+func registerUserOnServer(user User, serverURL string) bool {
+	userData, _ := json.Marshal(user)
+	resp, err := http.Post(fmt.Sprintf("%s/register", serverURL), "application/json", bytes.NewBuffer(userData))
+	if err != nil {
+		fmt.Println("⚠️ Registration failed:", err)
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// ✅ WebSocket connection for messaging
+func connectWebSocket(username, wsURL string) {
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		log.Fatal("Connection Error:", err)
 	}
@@ -237,7 +164,6 @@ func connectWebSocket(username string) {
 		input = strings.TrimSpace(input)
 
 		if input == "Q" || input == "q" {
-			//saveUser(User{Username: username, IsLoggedIn: false})
 			fmt.Println("Goodbye!")
 			break
 		} else if input == "M" || input == "m" {
@@ -263,4 +189,18 @@ func connectWebSocket(username string) {
 			}
 		}
 	}
+}
+
+func getDeviceID() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "unknown"
+	}
+
+	for _, iface := range interfaces {
+		if iface.HardwareAddr != nil {
+			return iface.HardwareAddr.String() // MAC address
+		}
+	}
+	return "unknown"
 }
