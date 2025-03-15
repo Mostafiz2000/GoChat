@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,9 +28,52 @@ func main() {
 	models.InitDB()
 
 	http.HandleFunc("/ws", handleConnections)
+	http.HandleFunc("/sign-in", signInHandler)
+	http.HandleFunc("/register", registerUserHandler)
 
 	fmt.Println("🚀 Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+func signInHandler(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := models.AuthenticateUser(user.Username, user.Password)
+	if err != nil {
+		http.Error(w, "Failed to login user", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "User login successfully!",
+		"userID":  userID,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+func registerUserHandler(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := models.RegisterUser(user.Name, user.Username, user.Password, user.DeviceID)
+	if err != nil {
+		http.Error(w, "Failed to register user", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "User registered successfully!",
+		"userID":  userID,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -46,19 +90,34 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate user
-	userID, err := models.AuthenticateUser(db, user.Username, user.Password)
-	if err != nil {
-		log.Println("Authentication failed:", err)
-		conn.WriteJSON(map[string]string{"error": "Invalid credentials"})
-		return
-	}
+	var userID int
 
-	// Store user session
-	user.ID = userID
-	mutex.Lock()
-	clients[user.Username] = conn
-	mutex.Unlock()
+	existingUser, err := models.GetUserByUsername(user.Username)
+	if err != nil {
+		// User not found, proceed with registration
+		log.Printf("User %s not found, registering...", existingUser.Name)
+		_, err = models.RegisterUser(user.Name, user.Username, user.Password, user.DeviceID)
+		if err != nil {
+			log.Println("Error registering user:", err)
+			conn.WriteJSON(map[string]string{"error": "Registration failed"})
+			return
+		}
+		conn.WriteJSON(map[string]string{"success": "User registered successfully!"})
+	} else {
+		// User found, proceed with authentication
+		userID, err = models.AuthenticateUser(user.Username, user.Password)
+		if err != nil {
+			log.Println("Authentication failed:", err)
+			conn.WriteJSON(map[string]string{"error": "Invalid credentials"})
+			return
+		} else {
+			user.ID = userID
+			mutex.Lock()
+			clients[user.Username] = conn
+			mutex.Unlock()
+		}
+
+	}
 
 	log.Printf("User %s logged in with ID %d\n", user.Username, userID)
 
@@ -70,7 +129,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		receiverID, err := models.GetUserIDByUsername(db, msg.ReceiverUsername)
+		receiverID, err := models.GetUserIDByUsername(msg.ReceiverUsername)
 		if err != nil {
 			conn.WriteJSON(map[string]string{"error": "User not found"})
 			continue

@@ -65,11 +65,12 @@ func migrateDB() {
 }
 
 type User struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	DeviceID string `json:"deviceID"`
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	DeviceID   string `json:"deviceID"`
+	created_at string `json:"timestamp"`
 }
 
 type Message struct {
@@ -79,20 +80,11 @@ type Message struct {
 	TimeStamp        string `json:"timestamp"`
 }
 
-func RegisterUser(db *sql.DB, name, username, password string) (int, error) {
-	var existingID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&existingID)
-	if err == nil {
-		return 0, errors.New("username already exists")
-	} else if err != sql.ErrNoRows {
-		return 0, err
-	}
-
-	result, err := db.Exec("INSERT INTO users (name, username, password) VALUES (?, ?, ?)", name, username, password)
+func RegisterUser(name, username, password, deviceID string) (int, error) {
+	result, err := DB.Exec("INSERT INTO users (name, username, password, deviceID) VALUES (?, ?, ?, ?)", name, username, password, deviceID)
 	if err != nil {
 		return 0, err
 	}
-
 	id, err := result.LastInsertId()
 	if err != nil {
 		return 0, err
@@ -100,10 +92,10 @@ func RegisterUser(db *sql.DB, name, username, password string) (int, error) {
 	return int(id), nil
 }
 
-func AuthenticateUser(db *sql.DB, username, password string) (int, error) {
+func AuthenticateUser(username, password string) (int, error) {
 	var userID int
 	var storedPassword string
-	err := db.QueryRow("SELECT id, password FROM users WHERE username = ?", username).Scan(&userID, &storedPassword)
+	err := DB.QueryRow("SELECT id, password FROM users WHERE username = ?", username).Scan(&userID, &storedPassword)
 	if err != nil {
 		return 0, errors.New("invalid username or password")
 	}
@@ -120,9 +112,19 @@ func SaveMessage(db *sql.DB, senderID, receiverID int, content string) error {
 	return err
 }
 
-func GetUserIDByUsername(db *sql.DB, username string) (int, error) {
+func GetUserByUsername(username string) (*User, error) {
+	var user User
+	err := DB.QueryRow("SELECT id, name, username, password, deviceID FROM users WHERE username = ?", username).
+		Scan(&user.ID, &user.Name, &user.Username, &user.Password, &user.DeviceID)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func GetUserIDByUsername(username string) (int, error) {
 	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	err := DB.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
 	if err != nil {
 		return 0, err
 	}
