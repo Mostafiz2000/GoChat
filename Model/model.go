@@ -97,7 +97,7 @@ func AuthenticateUser(username, password string) (int, error) {
 	var storedPassword string
 	err := DB.QueryRow("SELECT id, password FROM users WHERE username = ?", username).Scan(&userID, &storedPassword)
 	if err != nil {
-		return 0, errors.New("invalid username or password")
+		return 0, errors.New("invalid username")
 	}
 
 	if storedPassword != password {

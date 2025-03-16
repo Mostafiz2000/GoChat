@@ -29,6 +29,7 @@ type User struct {
 
 var serverIP string
 var serverPort string
+var tempUser User
 
 func main() {
 	// Ensure the correct number of arguments are provided
@@ -64,7 +65,7 @@ func main() {
 
 			deviceID := getDeviceID()
 
-			tempUser := User{
+			tempUser = User{
 				Username: username,
 				Password: password,
 				DeviceID: deviceID,
@@ -105,7 +106,7 @@ func main() {
 		}
 	}
 
-	connectWebSocket(username, wsURL)
+	connectWebSocket(tempUser, wsURL)
 }
 
 func loginUser(user User, serverURL string) bool {
@@ -130,15 +131,13 @@ func registerUserOnServer(user User, serverURL string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// ✅ WebSocket connection for messaging
-func connectWebSocket(username, wsURL string) {
+func connectWebSocket(user User, wsURL string) {
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		log.Fatal("Connection Error:", err)
 	}
 	defer conn.Close()
 
-	user := User{Username: username}
 	err = conn.WriteJSON(user)
 	if err != nil {
 		log.Fatal("Error sending username:", err)
@@ -176,7 +175,7 @@ func connectWebSocket(username, wsURL string) {
 			messageContent = strings.TrimSpace(messageContent)
 
 			message := Message{
-				SenderUsername:   username,
+				SenderUsername:   user.Username,
 				ReceiverUsername: receiver,
 				Content:          messageContent,
 			}

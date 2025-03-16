@@ -115,10 +115,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 		conn.WriteJSON(map[string]string{"success": "User registered successfully!"})
 	} else {
-		// User found, proceed with authentication
+
 		userID, err = models.AuthenticateUser(user.Username, user.Password)
 		if err != nil {
-			log.Println("Authentication failed:", err)
+			log.Println("Authentication failed :", err)
 			conn.WriteJSON(map[string]string{"error": "Invalid credentials"})
 			return
 		} else {
