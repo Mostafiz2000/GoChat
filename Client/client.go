@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"syscall"
+
+	"golang.org/x/term"
 
 	"github.com/gorilla/websocket"
 )
@@ -60,9 +63,9 @@ func main() {
 			username = strings.TrimSpace(username)
 
 			fmt.Print("Enter your password: ")
-			password, _ = reader.ReadString('\n')
-			password = strings.TrimSpace(password)
-
+			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
+			password = string(bytePassword)
+			fmt.Println("")
 			deviceID := getDeviceID()
 
 			tempUser = User{
@@ -87,8 +90,9 @@ func main() {
 			username = strings.TrimSpace(username)
 
 			fmt.Print("Create a password: ")
-			password, _ = reader.ReadString('\n')
-			password = strings.TrimSpace(password)
+			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
+			password = string(bytePassword)
+			fmt.Println("")
 
 			deviceID := getDeviceID()
 
