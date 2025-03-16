@@ -61,13 +61,13 @@ In the project directory, run the server using the following command:
 
 ```bash
 # Start the server
-go run server.go
+go run server.go <server ip> <port>
 ```
 ### 3. Run the Client  
 
  ```bash
 # Start the server
-go run client.go
+go run client.go <server ip> <port>
 ```
 
 
