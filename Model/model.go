@@ -107,8 +107,8 @@ func AuthenticateUser(username, password string) (int, error) {
 	return userID, nil
 }
 
-func SaveMessage(db *sql.DB, senderID, receiverID int, content string) error {
-	_, err := db.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", senderID, receiverID, content)
+func SaveMessage(senderID, receiverID int, content string) error {
+	_, err := DB.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", senderID, receiverID, content)
 	return err
 }
 

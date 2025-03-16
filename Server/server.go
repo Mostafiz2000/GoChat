@@ -146,10 +146,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Save message to the database
-		if err := models.SaveMessage(db, userID, receiverID, msg.Content); err != nil {
+		log.Println("saving messages")
+		if err := models.SaveMessage(userID, receiverID, msg.Content); err != nil {
 			log.Println("Error saving message:", err)
 		}
+		log.Println("message saved")
 
 		// Forward message if recipient is online
 		mutex.Lock()
